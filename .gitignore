@@ -1,0 +1,44 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Streamlit/cache/logs
+.streamlit/
+*.log
+
+# Data (keep essential dataset, ignore other large files)
+data/*.csv
+!data/Tweets.csv
+data/*.tsv
+data/*.json
+
+# Reports and artifacts (regenerable)
+reports/**
+!reports/README.md
+
+# Models (binaries); keep documentation
+models/**
+!models/README.md
+
+# Joblib and other binary artifacts anywhere
+*.joblib
+
+# Node/npm (not used, but safe)
+node_modules/
