@@ -76,14 +76,14 @@ You can adjust both in the sidebar.
   - `scripts/eval.py`: loads pipelines and prints reports/plots on test split.
 - Reports: `reports/metrics.json`, `reports/classification_*.csv`, `reports/confusion_*.csv`.
 
-## Results summary (hold-out test)
+## Results summary
 From `reports/metrics.json` of a representative run:
 - Logistic Regression: Accuracy 0.7845, Macro F1 0.7368
 - Linear SVM: Accuracy 0.7941, Macro F1 0.7360
 - Multinomial NB: Accuracy 0.7186, Macro F1 0.5426
 Interpretation: Linear SVM attains the best accuracy; Logistic Regression offers a strong balance (fast, competitive). NB is fastest but less balanced across classes.
 
-## EDA (for instructor review)
+## EDA
 Open `notebooks/eda.ipynb`:
 - Class distribution and imbalance.
 - Message length and token counts by class.
@@ -96,7 +96,7 @@ Open `notebooks/eda.ipynb`:
 - Class weights used for LR/SVM due to imbalance.
 - All artifacts regenerable from scripts; only essential data (`data/Tweets.csv`) is versioned.
 
-## Limitations and future work (aligned with proposal)
+## Limitations and future work 
 - English-only training data; Spanish UI relies on translation.
 - Three coarse sentiment classes only (no fine-grained emotions, no sarcasm handling).
 - FAQ coverage limited to 10–15 items; simple TF–IDF retrieval.
