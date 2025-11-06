@@ -11,8 +11,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 MODELS_DIR = 'models'
 FAQS_PATH = 'app/faqs/faqs_es.yaml'
 
-st.set_page_config(page_title="Chatbot de Soporte (ES)", layout="centered")
-st.title("Chatbot de Soporte al Cliente (ES)")
+st.set_page_config(page_title="Chatbot de Soporte", page_icon="🤖", layout="centered")
+st.title("Chatbot de Soporte al Cliente")
 
 # Carga de modelos entrenados (EN)
 def load_models():
@@ -40,6 +40,8 @@ VEC, FAQ_X, FAQ_PREGUNTAS = build_faq_index(FAQS)
 
 if 'latencies_ms' not in st.session_state:
     st.session_state.latencies_ms = []
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
 
 model_name = st.sidebar.selectbox('Modelo:', list(MODELS.keys()))
 mostrar_detalle = st.sidebar.checkbox('Mostrar detalles de predicción', value=False)
@@ -50,63 +52,103 @@ if st.session_state.latencies_ms:
     st.sidebar.write(f"Latencia promedio: {avg_ms:.1f} ms en {len(st.session_state.latencies_ms)} mensajes")
 model = MODELS[model_name]
 
+with st.sidebar.expander("Rendimiento del Modelo"):
+    st.write("Gráficos generados a partir del conjunto de prueba.")
+    
+    # Mostrar gráfico de comparación de modelos
+    comparison_plot_path = 'reports/plots/model_comparison.png'
+    if os.path.exists(comparison_plot_path):
+        st.image(comparison_plot_path, caption='Comparación de Precisión y F1-Score de Modelos')
+    else:
+        st.write("Gráfico de comparación no encontrado. Ejecuta `scripts/visualize_results.py` para generarlo.")
+
+    # Mostrar matriz de confusión para el modelo seleccionado
+    cm_plot_path = f'reports/plots/confusion_matrix_{model_name}.png'
+    if os.path.exists(cm_plot_path):
+        st.image(cm_plot_path, caption=f'Matriz de Confusión para {model_name.upper()}')
+    else:
+        st.write(f"Matriz de confusión para {model_name} no encontrada.")
+
 translator_es_en = GoogleTranslator(source='auto', target='en')
 translator_en_es = GoogleTranslator(source='auto', target='es')
 
-mensaje = st.chat_input('Escribe aquí (ej. "Mi pedido no ha llegado")')
-if mensaje:
-    msg_es = mensaje.strip()
-    # Traducir al inglés para clasificar
-    t0 = time.perf_counter()
-    msg_en = translator_es_en.translate(msg_es)
-    pred = model.predict([msg_en])[0]
-    elapsed_ms = (time.perf_counter() - t0) * 1000.0
-    st.session_state.latencies_ms.append(elapsed_ms)
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    with st.chat_message(message["role"], avatar="🧑‍💻" if message["role"] == "user" else "🤖"):
+        st.markdown(message["content"])
 
-    confianza = None
-    margen = None
-    if hasattr(model.named_steps['clf'], 'predict_proba'):
-        proba = model.named_steps['clf'].predict_proba(model.named_steps['tfidf'].transform([msg_en]))[0]
-        confianza = float(np.max(proba))
-        if mostrar_detalle:
-            st.write(f"Probabilidades EN: {dict(zip(model.classes_, np.round(proba,2)))}")
-    elif hasattr(model.named_steps['clf'], 'decision_function'):
-        df = model.named_steps['clf'].decision_function(model.named_steps['tfidf'].transform([msg_en]))
-        if df.ndim == 1:
-            margen = float(np.max(df))
-        else:
-            margen = float(np.max(df))
+# Show initial message
+if not st.session_state.messages:
+    with st.chat_message("assistant", avatar="🤖"):
+        st.markdown("¡Hola! ¿Cómo puedo ayudarte hoy?")
+    st.session_state.messages.append({"role": "assistant", "content": "¡Hola! ¿Cómo puedo ayudarte hoy?"})
 
-    st.markdown(f"**Predicción (EN):** {pred.upper()}")
+prompt = st.chat_input('Escribe aquí (ej. "Mi pedido no ha llegado")')
+if prompt:
+    # Add user message to chat history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Display user message in chat message container
+    with st.chat_message("user", avatar="🧑‍💻"):
+        st.markdown(prompt)
 
-    # Plantillas de tono ES
-    if pred == 'negative':
-        preambulo = "Lamentamos lo sucedido. Entendemos tu frustración."
-    elif pred == 'neutral':
-        preambulo = "Gracias por tu mensaje."
-    else:
-        preambulo = "Con gusto te ayudamos."
+    # Display assistant response in chat message container
+    with st.chat_message("assistant", avatar="🤖"):
+        msg_es = prompt.strip()
+        # Traducir al inglés para clasificar
+        t0 = time.perf_counter()
+        msg_en = translator_es_en.translate(msg_es)
+        pred = model.predict([msg_en])[0]
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        st.session_state.latencies_ms.append(elapsed_ms)
 
-    # FAQs con similitud TF-IDF
-    respuesta = None
-    if FAQS and FAQ_X is not None:
-        q_vec = VEC.transform([msg_es.lower()])
-        sims = cosine_similarity(q_vec, FAQ_X)[0]
-        idx = int(np.argmax(sims)) if sims.size > 0 else -1
-        if sims.size > 0 and sims[idx] >= umbral_faq:
-            q_match = FAQ_PREGUNTAS[idx]
-            respuesta = FAQS[q_match]
+        confianza = None
+        margen = None
+        if hasattr(model.named_steps['clf'], 'predict_proba'):
+            proba = model.named_steps['clf'].predict_proba(model.named_steps['tfidf'].transform([msg_en]))[0]
+            confianza = float(np.max(proba))
+            if mostrar_detalle:
+                st.write(f"Probabilidades EN: {dict(zip(model.classes_, np.round(proba,2)))}")
+        elif hasattr(model.named_steps['clf'], 'decision_function'):
+            df = model.named_steps['clf'].decision_function(model.named_steps['tfidf'].transform([msg_en]))
+            if df.ndim == 1:
+                margen = float(np.max(df))
+            else:
+                margen = float(np.max(df))
 
-    if respuesta:
-        st.markdown(f"{preambulo} {respuesta}")
-    else:
-        escalar = False
+        st.markdown(f"**Predicción (EN):** {pred.upper()}")
+
+        # Plantillas de tono ES
         if pred == 'negative':
-            if confianza is not None and confianza >= umbral_escalamiento:
-                escalar = True
-            if margen is not None and margen >= umbral_escalamiento:
-                escalar = True
-        if escalar:
-            st.markdown(f"{preambulo} ¿Deseas que escalemos tu caso con un agente humano?")
+            preambulo = "Lamentamos lo sucedido. Entendemos tu frustración."
+        elif pred == 'neutral':
+            preambulo = "Gracias por tu mensaje."
         else:
-            st.markdown(f"{preambulo} Cuéntanos cómo podemos ayudarte con más detalle.")
+            preambulo = "Con gusto te ayudamos."
+
+        # FAQs con similitud TF-IDF
+        respuesta_faq = None
+        if FAQS and FAQ_X is not None:
+            q_vec = VEC.transform([msg_es.lower()])
+            sims = cosine_similarity(q_vec, FAQ_X)[0]
+            idx = int(np.argmax(sims)) if sims.size > 0 else -1
+            if sims.size > 0 and sims[idx] >= umbral_faq:
+                q_match = FAQ_PREGUNTAS[idx]
+                respuesta_faq = FAQS[q_match]
+
+        response = ""
+        if respuesta_faq:
+            response = f"{preambulo} {respuesta_faq}"
+        else:
+            escalar = False
+            if pred == 'negative':
+                if confianza is not None and confianza >= umbral_escalamiento:
+                    escalar = True
+                if margen is not None and margen >= umbral_escalamiento:
+                    escalar = True
+            if escalar:
+                response = f"{preambulo} ¿Deseas que escalemos tu caso con un agente humano?"
+            else:
+                response = f"{preambulo} Cuéntanos cómo podemos ayudarte con más detalle."
+        
+        st.markdown(response)
+        st.session_state.messages.append({"role": "assistant", "content": response})

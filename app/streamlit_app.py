@@ -11,8 +11,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 MODELS_DIR = 'models'
 FAQS_PATH = 'app/faqs/faqs_en.yaml'
 
-st.set_page_config(page_title="Sentiment Chatbot", layout="centered")
-st.title("Customer Support Chatbot (EN)")
+st.set_page_config(page_title="Sentiment Chatbot", page_icon="🤖", layout="centered")
+st.title("Customer Support Chatbot")
 
 # Sidebar: select model, show probabilities checkbox
 def load_models():
@@ -40,6 +40,8 @@ VEC, FAQ_X, FAQ_QUESTIONS = build_faq_index(FAQS)
 
 if 'latencies_ms' not in st.session_state:
     st.session_state.latencies_ms = []
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
 
 model_name = st.sidebar.selectbox('Pick model:', list(MODELS.keys()))
 show_prob = st.sidebar.checkbox('Show prediction details', value=True)
@@ -50,58 +52,98 @@ if st.session_state.latencies_ms:
     st.sidebar.write(f"Avg latency: {avg_ms:.1f} ms over {len(st.session_state.latencies_ms)} msgs")
 model = MODELS[model_name]
 
-example = st.chat_input('Write here (e.g. "Why is my flight delayed?")')
-if example:
-    user_msg = example.strip()
-    t0 = time.perf_counter()
-    pred = model.predict([user_msg])[0]
-    elapsed_ms = (time.perf_counter() - t0) * 1000.0
-    st.session_state.latencies_ms.append(elapsed_ms)
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    with st.chat_message(message["role"], avatar="🧑‍💻" if message["role"] == "user" else "🤖"):
+        st.markdown(message["content"])
 
-    confidence = None
-    margin = None
-    if hasattr(model.named_steps['clf'], 'predict_proba'):
-        proba = model.named_steps['clf'].predict_proba(model.named_steps['tfidf'].transform([user_msg]))[0]
-        confidence = float(np.max(proba))
-        if show_prob:
-            st.write(f"Probabilities: {dict(zip(model.classes_, np.round(proba,2)))}")
-    elif hasattr(model.named_steps['clf'], 'decision_function'):
-        df = model.named_steps['clf'].decision_function(model.named_steps['tfidf'].transform([user_msg]))
-        if df.ndim == 1:
-            margin = float(np.max(df))
-        else:
-            margin = float(np.max(df))
+# Show initial message
+if not st.session_state.messages:
+    with st.chat_message("assistant", avatar="🤖"):
+        st.markdown("Hello! How can I help you today?")
+    st.session_state.messages.append({"role": "assistant", "content": "Hello! How can I help you today?"})
 
-    st.markdown(f"**Model prediction:** <span style='color:orange;font-weight:bold'>{pred.upper()}</span>", unsafe_allow_html=True)
+prompt = st.chat_input('Write here (e.g. "Why is my flight delayed?")')
+if prompt:
+    # Add user message to chat history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Display user message in chat message container
+    with st.chat_message("user", avatar="🧑‍💻"):
+        st.markdown(prompt)
 
-    # Tone-mapping
-    if pred == 'negative':
-        preamble = "We're sorry about your experience. We understand your frustration."
-    elif pred == 'neutral':
-        preamble = "Thank you for your question."
-    else:
-        preamble = "We're glad to help!"
+    # Display assistant response in chat message container
+    with st.chat_message("assistant", avatar="🤖"):
+        user_msg = prompt.strip()
+        t0 = time.perf_counter()
+        pred = model.predict([user_msg])[0]
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        st.session_state.latencies_ms.append(elapsed_ms)
 
-    # FAQ retrieval via TF-IDF cosine similarity
-    ans = None
-    if FAQS and FAQ_X is not None:
-        q_vec = VEC.transform([user_msg.lower()])
-        sims = cosine_similarity(q_vec, FAQ_X)[0]
-        idx = int(np.argmax(sims)) if sims.size > 0 else -1
-        if sims.size > 0 and sims[idx] >= faq_threshold:
-            q_match = FAQ_QUESTIONS[idx]
-            ans = FAQS[q_match]
+        confidence = None
+        margin = None
+        if hasattr(model.named_steps['clf'], 'predict_proba'):
+            proba = model.named_steps['clf'].predict_proba(model.named_steps['tfidf'].transform([user_msg]))[0]
+            confidence = float(np.max(proba))
+            if show_prob:
+                st.write(f"Probabilities: {dict(zip(model.classes_, np.round(proba,2)))}")
+        elif hasattr(model.named_steps['clf'], 'decision_function'):
+            df = model.named_steps['clf'].decision_function(model.named_steps['tfidf'].transform([user_msg]))
+            if df.ndim == 1:
+                margin = float(np.max(df))
+            else:
+                margin = float(np.max(df))
 
-    if ans:
-        st.markdown(f"{preamble} {ans}")
-    else:
-        should_escalate = False
+        st.markdown(f"**Model prediction:** <span style='color:orange;font-weight:bold'>{pred.upper()}</span>", unsafe_allow_html=True)
+
+        # Tone-mapping
         if pred == 'negative':
-            if confidence is not None and confidence >= escalation_threshold:
-                should_escalate = True
-            if margin is not None and margin >= escalation_threshold:
-                should_escalate = True
-        if should_escalate:
-            st.markdown(f"{preamble} Would you like to be connected with a human agent?")
+            preamble = "We're sorry about your experience. We understand your frustration."
+        elif pred == 'neutral':
+            preamble = "Thank you for your question."
         else:
-            st.markdown(f"{preamble} Please let us know how we can assist further.")
+            preamble = "We're glad to help!"
+
+        # FAQ retrieval via TF-IDF cosine similarity
+        ans = None
+        if FAQS and FAQ_X is not None:
+            q_vec = VEC.transform([user_msg.lower()])
+            sims = cosine_similarity(q_vec, FAQ_X)[0]
+            idx = int(np.argmax(sims)) if sims.size > 0 else -1
+            if sims.size > 0 and sims[idx] >= faq_threshold:
+                q_match = FAQ_QUESTIONS[idx]
+                ans = FAQS[q_match]
+        
+        response = ""
+        if ans:
+            response = f"{preamble} {ans}"
+        else:
+            should_escalate = False
+            if pred == 'negative':
+                if confidence is not None and confidence >= escalation_threshold:
+                    should_escalate = True
+                if margin is not None and margin >= escalation_threshold:
+                    should_escalate = True
+            if should_escalate:
+                response = f"{preamble} Would you like to be connected with a human agent?"
+            else:
+                response = f"{preamble} Please let us know how we can assist further."
+        
+        st.markdown(response)
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+with st.sidebar.expander("Model Performance"):
+    st.write("Confusion matrices and performance plots from the test set.")
+    
+    # Show model comparison plot
+    comparison_plot_path = 'reports/plots/model_comparison.png'
+    if os.path.exists(comparison_plot_path):
+        st.image(comparison_plot_path, caption='Model Accuracy and F1-Score Comparison')
+    else:
+        st.write("Comparison plot not found. Run `scripts/visualize_results.py` to generate it.")
+
+    # Show confusion matrix for the selected model
+    cm_plot_path = f'reports/plots/confusion_matrix_{model_name}.png'
+    if os.path.exists(cm_plot_path):
+        st.image(cm_plot_path, caption=f'Confusion Matrix for {model_name.upper()}')
+    else:
+        st.write(f"Confusion matrix for {model_name} not found.")
