@@ -131,3 +131,40 @@ Del archivo `reports/metrics.json` de una ejecución representativa:
 - NB multinomial: Precisión 0.7186, Macro F1 0.5426
 
 Interpretación: SVM lineal alcanza la mejor precisión; la regresión logística ofrece un buen equilibrio (rápida y competitiva). NB es la más rápida, pero menos equilibrada entre clases.
+
+## EDA
+Abrir `notebooks/eda.ipynb`:
+
+- Distribución y desequilibrio de clases.
+
+- Longitud de los mensajes y recuento de tokens por clase.
+
+- Vista previa de la limpieza (eliminación de URL, menciones y hashtags) y justificación para mantener las negaciones.
+
+- Fundamentación del uso de n-gramas TF-IDF y macro F1 como métrica principal.
+
+## Reproducibilidad y calidad
+
+- Semillas fijas (`random_state=42`).
+
+- División de conjuntos de entrenamiento y prueba antes del ajuste de texto.
+
+- Se utilizan pesos de clase para LR/SVM debido al desequilibrio.
+
+- Todos los artefactos se pueden regenerar mediante scripts; solo los datos esenciales (`data/Tweets.csv`) tienen control de versiones.
+
+## Limitaciones y trabajo futuro
+
+- Datos de entrenamiento solo en inglés; la interfaz de usuario en español depende de la traducción.
+
+- Solo tres clases de sentimiento generales (sin emociones específicas ni manejo de sarcasmo).
+
+- Cobertura de preguntas frecuentes limitada a 10-15 elementos; recuperación TF-IDF simple.
+
+- Futuro: ampliar idiomas y datos, agregar más categorías de emociones, heurísticas de sarcasmo, una base de preguntas frecuentes más grande, memoria de contexto opcional.
+
+## Referencias (seleccionadas)
+
+- Liu (2012), Pang & Lee (2008), Go et al. (2009), Ravi y Ravi (2015).
+
+- scikit-learn (Pedregosa et al., 2011) para todos los componentes clásicos de aprendizaje automático.
