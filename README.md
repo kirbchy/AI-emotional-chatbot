@@ -168,3 +168,8 @@ Abrir `notebooks/eda.ipynb`:
 - Liu (2012), Pang & Lee (2008), Go et al. (2009), Ravi y Ravi (2015).
 
 - scikit-learn (Pedregosa et al., 2011) para todos los componentes clásicos de aprendizaje automático.
+
+
+## Información del proyecto
+- Autores: Paula Llanos, Samuel Rivero, Sara López — Universidad EAFIT
+- Conjunto de datos: Kaggle Twitter Sentimiento de las aerolíneas estadounidenses
