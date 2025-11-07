@@ -32,54 +32,39 @@ Los chatbots tradicionales responden correctamente, pero ignoran las emociones d
 
 ## Primeros pasos
 
-1. Crear y activar un entorno virtual
+1. **Crear y activar un entorno virtual**
 
-- Windows (PowerShell):
+   - Windows (PowerShell):
+```powershell
+     python -m venv .venv
+     .venv\Scripts\Activate.ps1
+```
 
-``
+   - macOS/Linux (bash/zsh):
+```bash
+     python3 -m venv .venv
+     source .venv/bin/activate
+```
 
-python -m venv .venv
+2. **Instalar los requisitos:**
+```bash
+   pip install -r requirements.txt
+```
 
-.venv\Scripts\Activate.ps1
+3. **Entrenar los modelos (conjunto de datos en inglés):**
+```bash
+   python scripts/train_all.py
+```
 
-``
+4. **Iniciar la interfaz de usuario (inglés):**
+```bash
+   streamlit run app/streamlit_app.py
+```
 
-- macOS/Linux (bash/zsh):
-
-``
-
-python3 -m venv .venv
-
-source .venv/bin/activate
-
-``
-2. Instalar los requisitos:
-
-``
-
-pip install -r requirements.txt
-
-``
-3. Entrenar los modelos (conjunto de datos en inglés):
-
-``
-
-python scripts/train_all.py
-
-``
-4. Iniciar la interfaz de usuario (inglés):
-
-``
-streamlit run app/streamlit_app.py
-
-``
-5. Iniciar la interfaz de usuario (español):
-
-``
-
-streamlit run app/streamlit_app_es.py
-
-``
+5. **Iniciar la interfaz de usuario (español):**
+```bash
+   streamlit run app/streamlit_app_es.py
+```
 
 ## Funciones de las aplicaciones (EN/ES)
 
